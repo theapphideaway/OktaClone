@@ -11,11 +11,9 @@ import CryptoKit
 struct HOTP {
 
    static func generate(secret: Data, counter: UInt64, digits: Int = 6) -> String? {
-       print("Counter = \(counter)")
        // 1. Convert Counter to Big Endian (Network Byte Order)
        // iOS is Little Endian, so we must flip the bytes for the network standard.
        var counterBigEndian = counter.bigEndian
-       print("Big Endian Counter = \(counter)")
     
        // We use "withUnsafeBytes" to safely read the raw memory of the integer
        let counterData = withUnsafeBytes(of: &counterBigEndian) { Data($0) }
@@ -25,21 +23,14 @@ struct HOTP {
        let key = SymmetricKey(data: secret)
        let hash = HMAC<Insecure.SHA1>.authenticationCode(for: counterData, using: key)
        
-       print("Key: \(key)")
-       print("Hash: \(hash)")
-       
     
        // 3. Dynamic Truncation
        // We extract 4 bytes from the hash to create our integer
        let hashData = Data(hash)
        guard let lastByte = hashData.last else { return nil }
-       
-       print("Last Byte: \(lastByte)")
     
        // The last 4 bits of the last byte tell us WHERE to look (the offset)
        let offset = Int(lastByte & 0x0f)
-       
-       print("Offset = \(offset)")
     
        // We use Bitwise Left Shifts (<<) to move bytes into the correct slot
        var truncatedHash: UInt32 = 0
@@ -52,8 +43,6 @@ struct HOTP {
        truncatedHash = truncatedHash & 0x7fffffff // Remove sign bit
        let modulus = UInt32(pow(10.0, Float(digits)))
        let pinValue = truncatedHash % modulus
-       
-       print("Final Pin = \(pinValue)")
     
        return String(format: "%0*d", digits, pinValue)
    }
@@ -69,8 +58,6 @@ struct TOTP {
         
         // Delegate the math to the HOTP Core
         let hotpReturnValue = HOTP.generate(secret: secret, counter: counter)
-        print("Return Value = \(hotpReturnValue!)")
-        print("------------------------------------------------")
         return hotpReturnValue
     }
 }

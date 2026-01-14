@@ -15,17 +15,29 @@ class TokenViewModel: ObservableObject {
     @Published var progress: Double = 1.0
     @Published var secondsRemaining: Int = 30
     
-    // The "Engine" inputs (Hardcoded for this week)
-    // We use the test secret from RFC 6238 for now
-    private let secret: Data = Data([
-        0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30,
-        0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30
-    ])
+    private var secret: Data?
     
     private var timer: AnyCancellable?
     
     init() {
+        loadSecret()
         startTimer()
+    }
+    
+    func loadSecret() {
+        do {
+            // Try to read from Keychain
+            self.secret = try KeychainManager.read()
+            print("Success: Loaded secret from Keychain")
+        } catch {
+            print("Keychain Empty or Error: \(error)")
+            // For testing only: Generate a random key and save it
+            // In the real app, this will come from the QR Code
+            let testSecret = Data("12345678901234567890".utf8)
+            try? KeychainManager.save(key: testSecret)
+            self.secret = testSecret
+            print("Saved new test secret to Keychain")
+        }
     }
     
     func startTimer() {
@@ -40,6 +52,8 @@ class TokenViewModel: ObservableObject {
     private func update() {
         let now = Date()
         let period: TimeInterval = 30
+        
+        guard let secret = secret else { return }
         
         // 1. Generate the Code
         if let newCode = TOTP.generate(secret: secret, time: now) {
@@ -59,4 +73,6 @@ class TokenViewModel: ObservableObject {
         self.secondsRemaining = Int(ceil(remaining))
         self.progress = remaining / period
     }
+    
+    
 }

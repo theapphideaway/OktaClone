@@ -14,29 +14,45 @@ class TokenViewModel: ObservableObject {
     @Published var code: String = "--- ---"
     @Published var progress: Double = 1.0
     @Published var secondsRemaining: Int = 30
+    @Published var hasToken: Bool = false
     
     private var secret: Data?
     
     private var timer: AnyCancellable?
     
     init() {
+        reset()
+        
         loadSecret()
         startTimer()
+    }
+    
+    func handleScan(code: String) {
+        // Use your Parser!
+        guard let token = OTPParser.parse(uri: code) else {
+            print("❌ Invalid QR Code")
+            return
+        }
+        
+        // Save the real secret
+        print("✅ Scanned: \(token.label)")
+        try? KeychainManager.save(key: token.secret)
+        
+        // Reload
+        self.secret = token.secret
+        update()
     }
     
     func loadSecret() {
         do {
             // Try to read from Keychain
             self.secret = try KeychainManager.read()
+            self.hasToken = true
             print("Success: Loaded secret from Keychain")
         } catch {
             print("Keychain Empty or Error: \(error)")
-            // For testing only: Generate a random key and save it
-            // In the real app, this will come from the QR Code
-            let testSecret = Data("12345678901234567890".utf8)
-            try? KeychainManager.save(key: testSecret)
-            self.secret = testSecret
-            print("Saved new test secret to Keychain")
+            print("No secret found. Waiting for user to scan.")
+            self.hasToken = false
         }
     }
     
@@ -74,5 +90,12 @@ class TokenViewModel: ObservableObject {
         self.progress = remaining / period
     }
     
+    func reset() {
+        try? KeychainManager.delete()
+        self.secret = nil
+        self.hasToken = false
+        self.timer?.cancel()
+        self.code = "--- ---"
+    }
     
 }

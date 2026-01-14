@@ -10,6 +10,7 @@ import SwiftUI
 struct ContentView: View {
     
     @StateObject private var vm = TokenViewModel()
+    @State private var isScanning = false
     
     var body: some View {
         VStack {
@@ -19,8 +20,20 @@ struct ContentView: View {
             Text("\(vm.secondsRemaining)")
             Text("\(vm.code)")
             Text("\(vm.progress)")
+            Button(action: { isScanning = true }) {
+                Image(systemName: "qrcode.viewfinder")
+                    .font(.title2)
+                    .foregroundColor(.blue)
+            }
         }
         .padding()
+        .sheet(isPresented: $isScanning) {
+                    QRScannerView { code in
+                        // When code is found:
+                        vm.handleScan(code: code)
+                        isScanning = false // Close sheet
+                    }
+                }
     }
 }
 
